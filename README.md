@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # EarlyCare - Early Disease Risk Screening Platform
 
 A production-ready, scalable architecture for multi-condition early risk screening (**Diabetes**, **Hypertension**, and **Heart Disease**). Powered by pre-trained machine learning models with modular Flask REST backend services and a React frontend application.
@@ -122,3 +123,6 @@ The codebase architecture is structured for seamless integration of:
 3. **Role-Based Access Control (RBAC)**: Support for `patient`, `doctor`, and `admin` roles in schemas and context.
 4. **Lab Report OCR**: Service stub in `backend/services/report_parser.py`.
 5. **SHAP Explainability**: Service stub in `backend/services/shap_service.py`.
+=======
+# EarlyCare
+>>>>>>> 60b2bd16fe4f9e3078467111942ea2a328fae312
