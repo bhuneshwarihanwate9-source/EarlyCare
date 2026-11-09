@@ -27,7 +27,7 @@ from routes.prediction import prediction_bp
 def create_app():
     """Application factory for EarlyCare API server."""
     app = Flask(__name__)
-    CORS(app)  # Enable Cross-Origin Resource Sharing for React frontend
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
     # Register modular Blueprints
     app.register_blueprint(prediction_bp)
@@ -35,6 +35,14 @@ def create_app():
     app.register_blueprint(patient_bp)
     app.register_blueprint(doctor_bp)
     app.register_blueprint(admin_bp)
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({"status": "error", "message": "Endpoint not found"}), 404
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
     @app.route("/", methods=["GET"])
     def root():

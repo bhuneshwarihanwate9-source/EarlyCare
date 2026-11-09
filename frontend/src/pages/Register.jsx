@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../services/auth';
 
-export default function Register({ onNavigate }) {
+export default function Register({ onNavigate, roleParam = 'patient' }) {
   const { login } = useAuth();
-  const [selectedRole, setSelectedRole] = useState('patient'); // 'patient' | 'doctor' | 'admin'
+  const [role, setRole] = useState(
+    ['patient', 'doctor', 'admin'].includes(roleParam) ? roleParam : 'patient'
+  );
+
+  useEffect(() => {
+    if (roleParam && ['patient', 'doctor', 'admin'].includes(roleParam)) {
+      setRole(roleParam);
+    }
+  }, [roleParam]);
 
   // Form states
   const [fullName, setFullName] = useState('');
@@ -14,110 +22,159 @@ export default function Register({ onNavigate }) {
   const [specialization, setSpecialization] = useState('Cardiology');
   const [hospital, setHospital] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const roleMeta = {
+    patient: {
+      name: 'Patient',
+      icon: '🩺',
+      badgeClass: 'bg-sky-100 text-sky-800 border-sky-200',
+      btnClass: 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20',
+      subtitle: 'Set up your personal health management profile',
+    },
+    doctor: {
+      name: 'Doctor',
+      icon: '👨‍⚕️',
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      btnClass: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20',
+      subtitle: 'Register as an EarlyCare verified medical practitioner',
+    },
+    admin: {
+      name: 'Admin',
+      icon: '⚙️',
+      badgeClass: 'bg-purple-100 text-purple-800 border-purple-200',
+      btnClass: 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20',
+      subtitle: 'Platform security and administrative governance console',
+    },
+  }[role] || {
+    name: 'Patient',
+    icon: '🩺',
+    badgeClass: 'bg-sky-100 text-sky-800 border-sky-200',
+    btnClass: 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20',
+    subtitle: 'Set up your personal health management profile',
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
 
     const payload = {
-      role: selectedRole,
+      role,
       name: fullName,
       email,
       password,
-      ...(selectedRole === 'patient' && { phone }),
-      ...(selectedRole === 'doctor' && { specialization, hospital }),
+      ...(role === 'patient' && { phone }),
+      ...(role === 'doctor' && { specialization, hospital }),
     };
 
     try {
-      await registerUser(payload);
-      // Dummy auth login automatically
-      login({ name: fullName, email, role: selectedRole }, selectedRole);
-      onNavigate(`${selectedRole}-dashboard`);
+      const res = await registerUser(payload);
+      if (res.status === 'verification_required') {
+        setSuccessMsg(
+          res.message ||
+            'Account created successfully! A confirmation link has been sent to your email. Please check your inbox or spam folder to confirm your email before signing in.'
+        );
+      } else {
+        const userObj = res.user || { name: fullName, email, role };
+        login(userObj, role, res.session);
+        onNavigate(`${role}-dashboard`);
+      }
     } catch (err) {
-      alert('Registration failed');
+      setErrorMsg(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="max-w-xl mx-auto my-8 p-6 sm:p-8 bg-white rounded-2xl border border-slate-200/80 shadow-md">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create EarlyCare AI Account</h2>
-        <p className="text-sm text-slate-500 mt-1">Select your role to configure your personalized health dashboard</p>
-      </div>
-
-      {/* Step 1: Select Account Type */}
-      <div className="mb-6">
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 text-center">
-          Select Account Type
-        </label>
-        
-        <div className="grid grid-cols-3 gap-3">
-          <label
-            onClick={() => setSelectedRole('patient')}
-            className={`p-4 rounded-xl border-2 text-center cursor-pointer transition-all flex flex-col items-center gap-1.5 ${
-              selectedRole === 'patient'
-                ? 'border-sky-600 bg-sky-50/80 text-sky-900 shadow-sm'
-                : 'border-slate-200 hover:border-slate-300 text-slate-600'
-            }`}
+  // Admin registration is strictly prohibited publicly
+  if (role === 'admin') {
+    return (
+      <div className="max-w-md mx-auto my-8 sm:my-12 p-6 sm:p-8 bg-white rounded-2xl border border-slate-200/80 shadow-md text-center">
+        <div className="w-14 h-14 bg-purple-50 border border-purple-200 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
+          ⚙️
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-purple-200 bg-purple-50 text-xs font-bold text-purple-800 uppercase tracking-wider mb-3">
+          Admin Provisioning
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">
+          Admin Registration Restricted
+        </h2>
+        <p className="text-xs text-slate-600 mb-6 leading-relaxed">
+          Platform administrator accounts cannot be registered publicly. Authorized administrators are provisioned through internal governance.
+        </p>
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => onNavigate('login', { role: 'admin' })}
+            className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md shadow-purple-600/20 transition-all text-sm"
           >
-            <input
-              type="radio"
-              name="accountRole"
-              value="patient"
-              checked={selectedRole === 'patient'}
-              onChange={() => setSelectedRole('patient')}
-              className="sr-only"
-            />
-            <span className="text-2xl">🩺</span>
-            <span className="font-bold text-sm">Patient</span>
-          </label>
-
-          <label
-            onClick={() => setSelectedRole('doctor')}
-            className={`p-4 rounded-xl border-2 text-center cursor-pointer transition-all flex flex-col items-center gap-1.5 ${
-              selectedRole === 'doctor'
-                ? 'border-emerald-600 bg-emerald-50/80 text-emerald-900 shadow-sm'
-                : 'border-slate-200 hover:border-slate-300 text-slate-600'
-            }`}
+            Sign In to Admin Portal →
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('welcome')}
+            className="text-xs font-bold text-slate-400 hover:text-slate-700 flex items-center justify-center gap-1.5 transition-colors mx-auto pt-2"
           >
-            <input
-              type="radio"
-              name="accountRole"
-              value="doctor"
-              checked={selectedRole === 'doctor'}
-              onChange={() => setSelectedRole('doctor')}
-              className="sr-only"
-            />
-            <span className="text-2xl">👨‍⚕️</span>
-            <span className="font-bold text-sm">Doctor</span>
-          </label>
-
-          <label
-            onClick={() => setSelectedRole('admin')}
-            className={`p-4 rounded-xl border-2 text-center cursor-pointer transition-all flex flex-col items-center gap-1.5 ${
-              selectedRole === 'admin'
-                ? 'border-purple-600 bg-purple-50/80 text-purple-900 shadow-sm'
-                : 'border-slate-200 hover:border-slate-300 text-slate-600'
-            }`}
-          >
-            <input
-              type="radio"
-              name="accountRole"
-              value="admin"
-              checked={selectedRole === 'admin'}
-              onChange={() => setSelectedRole('admin')}
-              className="sr-only"
-            />
-            <span className="text-2xl">⚙️</span>
-            <span className="font-bold text-sm">Admin</span>
-          </label>
+            ← Choose a different account type
+          </button>
         </div>
       </div>
+    );
+  }
 
-      {/* Step 2: Role-Specific Dynamic Form */}
-      <form onSubmit={handleSubmit} className="space-y-4 pt-2 border-t border-slate-100">
+  return (
+    <div className="max-w-md mx-auto my-8 sm:my-12 p-6 sm:p-8 bg-white rounded-2xl border border-slate-200/80 shadow-md">
+      {/* Switch role back button */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => onNavigate('welcome')}
+          className="text-xs font-bold text-slate-400 hover:text-slate-700 flex items-center gap-1.5 transition-colors"
+        >
+          <span>←</span> Choose a different account type
+        </button>
+      </div>
+
+      <div className="text-center mb-6">
+        <div className="w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-sm">
+          {roleMeta.icon}
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider mb-2">
+          <span className={roleMeta.badgeClass + ' px-2 py-0.5 rounded-full'}>
+            {roleMeta.name} Registration
+          </span>
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          Create {roleMeta.name} Account
+        </h2>
+        <p className="text-xs text-slate-500 mt-1">{roleMeta.subtitle}</p>
+      </div>
+
+      {successMsg && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs sm:text-sm leading-relaxed font-medium">
+          <p className="font-bold mb-1">✉️ Action Required</p>
+          <p>{successMsg}</p>
+          <button
+            type="button"
+            onClick={() => onNavigate('login', { role })}
+            className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors inline-block"
+          >
+            Go to {roleMeta.name} Login →
+          </button>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs leading-relaxed font-semibold">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Role-Specific Registration Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
           <input
@@ -125,7 +182,7 @@ export default function Register({ onNavigate }) {
             required
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="e.g. Sarah Jenkins"
+            placeholder={role === 'doctor' ? 'Dr. Sarah Jenkins' : 'Sarah Jenkins'}
             className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm"
           />
         </div>
@@ -155,7 +212,7 @@ export default function Register({ onNavigate }) {
         </div>
 
         {/* Patient Specific Fields */}
-        {selectedRole === 'patient' && (
+        {role === 'patient' && (
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
             <input
@@ -170,14 +227,14 @@ export default function Register({ onNavigate }) {
         )}
 
         {/* Doctor Specific Fields */}
-        {selectedRole === 'doctor' && (
+        {role === 'doctor' && (
           <>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Specialization</label>
               <select
                 value={specialization}
                 onChange={(e) => setSpecialization(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm bg-white"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white"
               >
                 <option value="Cardiology">Cardiology</option>
                 <option value="Endocrinology">Endocrinology</option>
@@ -193,7 +250,7 @@ export default function Register({ onNavigate }) {
                 value={hospital}
                 onChange={(e) => setHospital(e.target.value)}
                 placeholder="St. Jude General Hospital"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
               />
             </div>
           </>
@@ -202,14 +259,18 @@ export default function Register({ onNavigate }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-4 py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md shadow-sky-600/20 transition-all text-sm"
+          className={`w-full mt-4 py-3 text-white font-bold rounded-xl shadow-md transition-all text-sm ${roleMeta.btnClass}`}
         >
-          {loading ? 'Creating Profile...' : `Register as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
+          {loading ? 'Creating Profile...' : `Register as ${roleMeta.name}`}
         </button>
 
         <p className="text-center text-xs text-slate-500 mt-3">
           Already registered?{' '}
-          <button type="button" onClick={() => onNavigate('login')} className="text-sky-600 font-bold hover:underline">
+          <button
+            type="button"
+            onClick={() => onNavigate('login', { role })}
+            className="text-sky-600 font-bold hover:underline"
+          >
             Login here
           </button>
         </p>

@@ -5,10 +5,22 @@ export default function DoctorResults({ patientName, vitals, labs, results, onRe
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState(false);
 
-  const handleSaveNote = (e) => {
+  const handleSaveNote = async (e) => {
     e.preventDefault();
+    if (note.trim()) {
+      try {
+        await fetch('/api/doctor/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patient_id: patientName, content: note }),
+        });
+      } catch {
+        // Fallback
+      }
+    }
     setSaved(true);
   };
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-4">

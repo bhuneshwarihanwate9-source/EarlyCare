@@ -5,6 +5,30 @@ import Charts from '../../components/Charts';
 
 export default function PatientDashboard({ onNavigate }) {
   const { user } = useAuth();
+  const [trends, setTrends] = React.useState({
+    diabetes: 'Low Risk',
+    heart: 'Moderate',
+    hypertension: 'Low Risk',
+  });
+
+  React.useEffect(() => {
+    const patientRef = user?.patient_id || user?.id;
+    if (patientRef) {
+      fetch(`/api/patient/dashboard?patient_id=${patientRef}`)
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.data?.risk_trends) {
+            const t = res.data.risk_trends;
+            setTrends({
+              diabetes: `${(t.diabetes || 'low').charAt(0).toUpperCase() + (t.diabetes || 'low').slice(1)} Risk`,
+              heart: `${(t.heart_disease || 'moderate').charAt(0).toUpperCase() + (t.heart_disease || 'moderate').slice(1)}`,
+              hypertension: `${(t.hypertension || 'low').charAt(0).toUpperCase() + (t.hypertension || 'low').slice(1)} Risk`,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   return (
     <div className="space-y-8">
@@ -32,9 +56,9 @@ export default function PatientDashboard({ onNavigate }) {
 
       {/* Summary Cards */}
       <div className="flex flex-wrap gap-4">
-        <StatsCard title="Diabetes Risk" value="Low Risk" subtitle="Normal HbA1c & Glucose" icon="🩸" />
-        <StatsCard title="Heart Disease Risk" value="Moderate" subtitle="Lifestyle check advised" icon="🫀" />
-        <StatsCard title="Hypertension Risk" value="Low Risk" subtitle="Normal Blood Pressure" icon="❤️" />
+        <StatsCard title="Diabetes Risk" value={trends.diabetes} subtitle="HbA1c & Glucose Telemetry" icon="🩸" />
+        <StatsCard title="Heart Disease Risk" value={trends.heart} subtitle="Cardiovascular Telemetry" icon="🫀" />
+        <StatsCard title="Hypertension Risk" value={trends.hypertension} subtitle="Blood Pressure Telemetry" icon="❤️" />
       </div>
 
       {/* Charts & Information */}

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { submitPrediction } from '../../services/api';
+import { submitPrediction, recordPatientAssessment } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import Results from './Results';
 
 export default function PatientAssessment({ onNavigate }) {
+  const { user, session } = useAuth();
+
   // 1. Personal Information
   const [age, setAge] = useState(45);
   const [gender, setGender] = useState('Female');
@@ -81,6 +84,15 @@ export default function PatientAssessment({ onNavigate }) {
       const res = await submitPrediction(apiPayload);
       if (res.status === 'success') {
         setResults(res.results);
+        const patientRef = user?.patient_id || user?.id;
+        if (patientRef) {
+          recordPatientAssessment({
+            patient_id: patientRef,
+            input_vitals: apiPayload,
+            symptoms,
+            risk_results: res.results,
+          }, session?.access_token);
+        }
       }
     } catch (err) {
       setError('Failed to process prediction. Make sure backend is running.');

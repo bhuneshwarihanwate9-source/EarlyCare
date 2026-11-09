@@ -31,3 +31,19 @@ export async function uploadMedicalReport(file) {
   if (!response.ok) throw new Error('Report upload failed');
   return response.json();
 }
+
+export async function recordPatientAssessment(assessmentData, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const response = await fetch(`${BASE_URL}/patient/assessments`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(assessmentData),
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}

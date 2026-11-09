@@ -132,7 +132,7 @@ export default function Navbar({ onNavigate, currentPage }) {
               </div>
             ) : (
               <button
-                onClick={() => navigate('login')}
+                onClick={() => navigate('welcome')}
                 className="px-4 py-2 text-sm font-semibold text-sky-700 border border-sky-200 hover:bg-sky-50 rounded-lg transition-colors whitespace-nowrap"
               >
                 Sign In
@@ -208,7 +208,7 @@ export default function Navbar({ onNavigate, currentPage }) {
                 </div>
               ) : (
                 <button
-                  onClick={() => navigate('login')}
+                  onClick={() => navigate('welcome')}
                   className="w-full px-4 py-2.5 text-sm font-semibold text-sky-700 border border-sky-200 rounded-lg"
                 >
                   Sign In

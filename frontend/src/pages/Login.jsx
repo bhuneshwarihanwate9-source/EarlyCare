@@ -2,80 +2,127 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../services/auth';
 
-export default function Login({ onNavigate }) {
+export default function Login({ onNavigate, roleParam = 'patient' }) {
   const { login } = useAuth();
+  const validRole = ['patient', 'doctor', 'admin'].includes(roleParam) ? roleParam : 'patient';
+  const [role, setRole] = useState(validRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('patient'); // 'patient' | 'doctor' | 'admin'
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
+
+  // Update role if roleParam changes
+  React.useEffect(() => {
+    if (roleParam && ['patient', 'doctor', 'admin'].includes(roleParam)) {
+      setRole(roleParam);
+    }
+  }, [roleParam]);
+
+  const roleMeta = {
+    patient: {
+      name: 'Patient',
+      icon: '🩺',
+      badgeClass: 'bg-sky-100 text-sky-800 border-sky-200',
+      btnClass: 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20',
+      subtitle: 'Access your health telemetry and screening assessments',
+    },
+    doctor: {
+      name: 'Doctor',
+      icon: '👨‍⚕️',
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      btnClass: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20',
+      subtitle: 'Access clinician suite, patient records, and diagnostic review',
+    },
+    admin: {
+      name: 'Admin',
+      icon: '⚙️',
+      badgeClass: 'bg-purple-100 text-purple-800 border-purple-200',
+      btnClass: 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20',
+      subtitle: 'Platform security and administrative governance console',
+    },
+  }[role];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg('');
+    setInfoMsg('');
+
     try {
-      await loginUser(email, password, role);
-      login({ email, name: email.split('@')[0] }, role);
-      onNavigate(`${role}-dashboard`);
+      const res = await loginUser(email, password, role);
+      const userObj = res.user || { email, name: email.split('@')[0], role };
+      const targetRole = userObj.role || role;
+
+      // Ensure verified role strictly matches the selected portal
+      if (targetRole !== role) {
+        throw new Error('You are not registered under this account type. Please select your registered role.');
+      }
+
+      login(userObj, targetRole, res.session);
+      onNavigate(`${targetRole}-dashboard`);
     } catch (err) {
-      alert('Login error');
+      const msg = err.message || 'Login failed';
+      if (err.errorCode === 'ROLE_MISMATCH' || msg.includes('not registered under this account type')) {
+        setErrorMsg('You are not registered under this account type. Please select your registered role.');
+      } else if (err.errorCode === 'EMAIL_NOT_CONFIRMED' || msg.toLowerCase().includes('email not confirmed')) {
+        setInfoMsg('Email verification pending: Please check your inbox or spam folder for the confirmation link before signing in.');
+      } else if (err.errorCode === 'INVALID_CREDENTIALS' || msg.toLowerCase().includes('invalid login credentials')) {
+        setErrorMsg('Invalid email or password. Please double check your credentials.');
+      } else {
+        setErrorMsg(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto my-12 p-6 sm:p-8 bg-white rounded-2xl border border-slate-200/80 shadow-md">
-      <div className="text-center mb-6">
-        <div className="w-12 h-12 bg-sky-100 text-sky-700 rounded-xl flex items-center justify-center text-xl font-bold mx-auto mb-3 border border-sky-200">
-          🔓
-        </div>
-        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Login to EarlyCare AI</h2>
-        <p className="text-xs text-slate-500 mt-1">Access your risk assessment telemetry and diagnostic suite</p>
+    <div className="max-w-md mx-auto my-8 sm:my-12 p-6 sm:p-8 bg-white rounded-2xl border border-slate-200/80 shadow-md">
+      {/* Switch role back button */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => onNavigate('welcome')}
+          className="text-xs font-bold text-slate-400 hover:text-slate-700 flex items-center gap-1.5 transition-colors"
+        >
+          <span>←</span> Choose a different account type
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Role Selection */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-            Select Role
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setRole('patient')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
-                role === 'patient'
-                  ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              Patient
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('doctor')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
-                role === 'doctor'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              Doctor
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('admin')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
-                role === 'admin'
-                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              Admin
-            </button>
-          </div>
+      <div className="text-center mb-6">
+        <div className="w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-sm">
+          {roleMeta.icon}
         </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider mb-2">
+          <span className={roleMeta.badgeClass + ' px-2 py-0.5 rounded-full'}>{roleMeta.name} Portal</span>
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          Sign In as {roleMeta.name}
+        </h2>
+        <p className="text-xs text-slate-500 mt-1">{roleMeta.subtitle}</p>
+      </div>
 
+      {infoMsg && (
+        <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs leading-relaxed font-medium">
+          {infoMsg}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs leading-relaxed font-semibold">
+          {errorMsg}
+        </div>
+      )}
+
+      {role === 'admin' && (
+        <div className="mb-4 p-3 bg-purple-50 border border-purple-200 text-purple-900 rounded-xl text-xs font-medium flex items-center gap-2">
+          <span>🔒</span>
+          <span>Authorized administrator access only. Public registration is disabled.</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
           <input
@@ -83,7 +130,7 @@ export default function Login({ onNavigate }) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@earlycare.org"
+            placeholder={`${role}@earlycare.org`}
             className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm"
           />
         </div>
@@ -103,17 +150,34 @@ export default function Login({ onNavigate }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md shadow-sky-600/20 transition-all text-sm mt-2"
+          className={`w-full py-3 text-white font-bold rounded-xl shadow-md transition-all text-sm mt-2 ${roleMeta.btnClass}`}
         >
-          {loading ? 'Authenticating...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
+          {loading ? 'Authenticating...' : `Sign In to ${roleMeta.name} Dashboard`}
         </button>
 
-        <p className="text-center text-xs text-slate-500 mt-4">
-          Need an account?{' '}
-          <button type="button" onClick={() => onNavigate('register')} className="text-sky-600 font-bold hover:underline">
-            Register here
-          </button>
-        </p>
+        {role !== 'admin' ? (
+          <p className="text-center text-xs text-slate-500 mt-4">
+            Need a {role} account?{' '}
+            <button
+              type="button"
+              onClick={() => onNavigate('register', { role })}
+              className="text-sky-600 font-bold hover:underline"
+            >
+              Register here
+            </button>
+          </p>
+        ) : (
+          <p className="text-center text-xs text-slate-400 mt-4">
+            Standard user?{' '}
+            <button
+              type="button"
+              onClick={() => onNavigate('welcome')}
+              className="text-purple-600 font-bold hover:underline"
+            >
+              Select Patient or Doctor
+            </button>
+          </p>
+        )}
       </form>
     </div>
   );

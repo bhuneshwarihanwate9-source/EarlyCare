@@ -14,7 +14,29 @@ export default function AdminDashboard() {
     { id: 5, name: 'System Admin', email: 'admin@earlycare.org', role: 'admin', registered: '2026-09-01', status: 'Active' },
   ];
 
-  const filteredUsers = dummyUsers.filter(u => userFilter === 'all' || u.role === userFilter);
+  const [usersList, setUsersList] = useState(dummyUsers);
+
+  React.useEffect(() => {
+    fetch('/api/admin/users')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.users && data.users.length > 0) {
+          const mapped = data.users.map((u) => ({
+            id: u.id,
+            name: u.full_name || u.email.split('@')[0],
+            email: u.email,
+            role: u.role || 'patient',
+            registered: u.created_at ? u.created_at.split('T')[0] : '2026-09-20',
+            status: u.is_active !== false ? 'Active' : 'Inactive',
+          }));
+          setUsersList(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const filteredUsers = usersList.filter(u => userFilter === 'all' || u.role === userFilter);
+
 
   return (
     <div className="space-y-8">

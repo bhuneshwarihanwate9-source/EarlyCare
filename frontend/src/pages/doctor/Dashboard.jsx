@@ -4,6 +4,26 @@ import StatsCard from '../../components/StatsCard';
 
 export default function DoctorDashboard({ onNavigate }) {
   const { user } = useAuth();
+  const [stats, setStats] = React.useState({
+    patients: '28',
+    flags: '4',
+    reports: '112',
+  });
+
+  React.useEffect(() => {
+    fetch('/api/doctor/dashboard')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.data) {
+          setStats({
+            patients: String(res.data.total_assigned_patients ?? 28),
+            flags: String(res.data.flagged_patients_count ?? 4),
+            reports: String(res.data.reports_processed ?? 112),
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -31,9 +51,9 @@ export default function DoctorDashboard({ onNavigate }) {
 
       {/* Stats Overview */}
       <div className="flex flex-wrap gap-4">
-        <StatsCard title="Assigned Patients" value="28" subtitle="Active clinical tracking" icon="👥" />
-        <StatsCard title="Flagged Risk Alerts" value="4" subtitle="Elevated Diabetes / BP" icon="🚨" />
-        <StatsCard title="Reports Processed" value="112" subtitle="OCR & Lab Uploads" icon="📋" />
+        <StatsCard title="Assigned Patients" value={stats.patients} subtitle="Active clinical tracking" icon="👥" />
+        <StatsCard title="Flagged Risk Alerts" value={stats.flags} subtitle="Elevated Diabetes / BP" icon="🚨" />
+        <StatsCard title="Reports Processed" value={stats.reports} subtitle="OCR & Lab Uploads" icon="📋" />
       </div>
 
       {/* Patient Screenings List Table */}
