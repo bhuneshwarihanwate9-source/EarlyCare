@@ -1,31 +1,30 @@
-"""
-EarlyCare Database Layer (Future-Ready)
-----------------------------------------
-Database engine connection and session management abstraction.
-Prepared for SQLite, MySQL, and PostgreSQL connection configuration.
-"""
 import os
 
-# Database configuration environment variable
-# e.g., sqlite:///earlycare.db or postgresql://user:pass@localhost:5432/earlycare
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///earlycare.db")
+from dotenv import load_dotenv
+from supabase import Client, create_client
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("Supabase credentials are missing!")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-class Database:
-    """Database interface wrapper supporting multi-backend database adapters."""
-
-    def __init__(self, db_url: str = DATABASE_URL):
-        self.db_url = db_url
-        self.connected = False
-
-    def init_app(self, app):
-        """Bind database session to Flask application lifecycle."""
-        # Future: SQLAlchemy / SQLModel db.init_app(app)
-        pass
-
-    def get_session(self):
-        """Provide a context-managed database session."""
-        raise NotImplementedError("Database connection not active. Ready for ORM configuration.")
+def get_supabase():
+    """Return the Supabase client."""
+    return supabase
 
 
-db = Database()
+def test_connection():
+    """Test connection to Supabase."""
+    try:
+        supabase.table("diseases").select("*").limit(1).execute()
+        print("Supabase connected successfully!")
+        return True
+    except Exception as e:
+        print("Supabase connection failed:", e)
+        return False
